@@ -1,0 +1,1 @@
+# Project focused on developing RESTful APIs in Node.js with basic CRUD functionality.
