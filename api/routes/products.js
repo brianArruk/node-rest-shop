@@ -4,7 +4,6 @@ const mongoose = require("mongoose")
 const router = express.Router()
 
 const Product = require("../models/product")
-const product = require("../models/product")
 
 router.get("/getAllProducts", (req, res, next) => {
     Product.find()
@@ -182,7 +181,7 @@ router.delete("/deleteProduct", (req, res, next) => {
             message: "Product deleted!",
             request: {
                 type: "POST",
-                url: 'localhost:3000/products/createProduct',
+                url: 'localhost:3000/products',
                 body: {
                     name: "String",
                     price: "Number"
