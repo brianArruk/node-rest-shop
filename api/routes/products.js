@@ -4,14 +4,30 @@ const mongoose = require("mongoose")
 const router = express.Router()
 
 const Product = require("../models/product")
+const product = require("../models/product")
 
 router.get("/getAllProducts", (req, res, next) => {
     Product.find()
+    .select("name price _id")
     .exec()
     .then(docs => {
-        console.log(docs);
+        const response = {
+            count: docs.length,
+            products: docs.map(doc => {
+                return {
+                    name: doc.name,
+                    price: doc.price,
+                    _id: doc._id,
+                    request: {
+                        type: "GET",
+                        url: 'localhost:3000/products/getProduct?productID=' + doc._id
+                    }
+                }
+            })
+        }
+        
         // if (docs.length > 0) {
-            res.status(200).json(docs)
+            res.status(200).json(response)
         // } else {
         //     res.status(404).json({message: "No product registered"})
         // }
@@ -33,8 +49,16 @@ router.post("/", (req, res, next) => {
     product.save().then(result => {
         console.log(result)
         res.status(201).json({
-            message: "Handling POST request to /products",
-            createdProduct: result
+            message: "Created product successfully",
+            createdProduct: {
+                name: result.doc,
+                price: result.price,
+                id: result._id,
+                request: {
+                    type: "GET",
+                    url: 'localhost:3000/products/getProduct?productID=' + result._id
+                }
+            }
         })
     }).catch(err => {
         console.log(err)
@@ -64,10 +88,20 @@ router.post("/", (req, res, next) => {
 router.get("/getProduct", (req, res, next) => {
     const id = req.query.productID
 
-    Product.findById(id).exec().then(doc => {
+    Product.findById(id)
+    .select('name price _id')
+    .exec()
+    .then(doc => {
         console.log("From database", doc)
         if (doc) {
-            res.status(200).json(doc)
+            res.status(200).json({
+                product: doc,
+                request: {
+                    type: "GET",
+                    description: "Get all products",
+                    url: 'localhost:3000/products/getAllProducts'
+                }
+            })
         } else {
             res.status(404).json({message: "Not found"})
         }
@@ -77,53 +111,84 @@ router.get("/getProduct", (req, res, next) => {
     })
 })
 
+// exemplo de rota utilizando async await ao inves do .then das promises
+router.get("/getProduct2", async (req, res, next) => {
+    const id = req.query.productID;
+
+    try {
+        const doc = await Product.findById(id).select('name price _id').exec();
+        
+        if (doc) {
+            console.log("From database", doc);
+            res.status(200).json({
+                product: doc,
+                request: {
+                    type: "GET",
+                    description: "Get all products",
+                    url: 'localhost:3000/products/getAllProducts'
+                }
+            });
+        } else {
+            res.status(404).json({ message: "Not found" });
+        }
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ error: err });
+    }
+});
+
 router.patch("/updateProduct", (req, res, next) => {
     const id = req.query.productID
 
     Product.findByIdAndUpdate(id, { $set: req.body }, { new: true})
-    .then(result => res.status(200).json(result))
+    .then(result => res.status(200).json({
+        message: "Product updated!",
+            request: {
+                type: "GET",
+                url: 'localhost:3000/products/getProduct?productID=' + result._id
+            }
+    }))
     .catch(err => res.status(500).json({ error: err}))
 
 })
 
-router.delete("/deleteProduct", (req, res, next) => {
-    const id = req.query.productID
-    let idDeleted
+// exemplo de rota utilizando async await ao inves do .then das promises
+router.patch("/updateProduct2", async (req, res, next) => {
+    const id = req.query.productID;
 
-    Product.findById(id).exec().then(doc => {
-        if (doc) {
-            idDeleted = doc._id
-        } else {
-            res.status(404).json({message: "Id Not found"})
-        }
-    }),
+    try {
+        const result = await Product.findByIdAndUpdate(id, { $set: req.body }, { new: true });
 
-    Product.deleteOne(idDeleted)
-    .exec()
-    .then(doc => {
-        console.log("Id deleted", idDeleted)
         res.status(200).json({
-            message: "Id deleted " + idDeleted
-        })
-    })
-    .catch(err => {
-        console.log(err)
-        res.status(500).json({
-            error: err
-        })
-    })
+            message: "Product updated!",
+            request: {
+                type: "GET",
+                url: 'localhost:3000/products/getProduct?productID=' + result._id
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ error: err });
+    }
+});
 
-})
-
-// Another simple way to delete Product
-router.delete("/deleteProduct2", (req, res, next) => {
+router.delete("/deleteProduct", (req, res, next) => {
     const id = req.query.productID
 
     Product.deleteOne({ _id: id })
     .exec()
     .then(result => {
         console.log("Id deleted", id)
-        res.status(200).json({message: "Id deleted " + id})
+        res.status(200).json({
+            message: "Product deleted!",
+            request: {
+                type: "POST",
+                url: 'localhost:3000/products/createProduct',
+                body: {
+                    name: "String",
+                    price: "Number"
+                }
+            }
+        })
     })
     .catch(err => {
         console.log(err)
